@@ -76,7 +76,7 @@
 using std::min;
 using std::max;
 
-const char *VER= "14.14";
+const char *VER= "14.14-fabric";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -188,6 +188,8 @@ static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
+static char *opt_fabric_group= 0, *opt_fabric_user= 0;
+static char *opt_fabric_password= 0;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
@@ -255,7 +257,8 @@ static int com_quit(String *str,char*),
            com_notee(String *str, char*), com_charset(String *str,char*),
            com_prompt(String *str, char*), com_delimiter(String *str, char*),
      com_warnings(String *str, char*), com_nowarnings(String *str, char*),
-     com_resetconnection(String *str, char*);
+     com_resetconnection(String *str, char*),
+     com_fabric(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -322,6 +325,8 @@ static COMMANDS commands[] = {
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
+  // Added by yoku0825.
+  { "fabric", 'F', com_fabric, 1, "Choose fabric opt group." },
   { "ego",    'G', com_ego,    0,
     "Send command to mysql server, display result vertically."},
   { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
@@ -1833,6 +1838,18 @@ static struct my_option my_long_options[] =
    "password sandbox mode.",
    &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  // Added by yoku0825.
+  {"fabric-group", 0,
+   "fabric group", &opt_fabric_group, &opt_fabric_group, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fabric-user", 0,
+   "Real user name which is used to connect through MySQL Fabric",
+   &opt_fabric_user, &opt_fabric_user, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fabric-password", 0,
+   "Real password which is used to connect through MySQL Fabric",
+   &opt_fabric_password, &opt_fabric_password, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4883,6 +4900,10 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
 #endif
 
+  // Added by yoku0825.
+  if (opt_fabric_group)
+    mysql_options(&mysql, MYSQL_OPT_USE_FABRIC, NULL);
+
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))
@@ -4896,6 +4917,14 @@ sql_real_connect(char *host,char *database,char *user,char *password,
       return ignore_errors ? -1 : 1;		// Abort
     }
     return -1;					// Retryable
+  }
+
+  // Added by yoku0825.
+  if (opt_fabric_group)
+  {
+    mysql_options(&mysql, FABRIC_OPT_GROUP, opt_fabric_group);
+    mysql_options4(&mysql, FABRIC_OPT_GROUP_CREDENTIALS, opt_fabric_user, opt_fabric_password);
+    mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, "rw");
   }
 
 #ifdef _WIN32
@@ -5762,4 +5791,22 @@ com_resetconnection(String *buffer __attribute__((unused)),
     return put_error(&mysql);
   }
   return error;
+}
+
+// Added by yoku0825.
+static int com_fabric(String *buffer __attribute__((unused)),
+                      char *line __attribute__((unused)))
+{
+  char *ptr=strchr(line, ' ');
+  char *new_fabric_opt_mode= my_strdup(PSI_NOT_INSTRUMENTED,
+                                        ptr ? ptr + 1 : 0, MYF(MY_WME));
+
+  if (strcmp(new_fabric_opt_mode, "ro") || strcmp(new_fabric_opt_mode, "rw"))
+  {
+    mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, new_fabric_opt_mode);
+    tee_fprintf(stdout, "Current FABRIC_OPT_DEFAULT_MODE is %s\n", new_fabric_opt_mode);
+  }
+  else
+    tee_fprintf(stdout, "Failed to change FABRIC_OPT_DEFAULT_MODE. Only 'ro' and 'rw' are permitted.\n", new_fabric_opt_mode);
+  return 0;
 }
