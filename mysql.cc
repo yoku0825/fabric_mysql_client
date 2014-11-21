@@ -188,8 +188,8 @@ static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
-static char *opt_fabric_group= 0, *opt_fabric_user= 0;
-static char *opt_fabric_password= 0;
+static char *opt_fabric_group= 0, *opt_fabric_default_mode= (char *) "na";
+static char *opt_fabric_user= 0, *opt_fabric_password= 0;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
@@ -4924,7 +4924,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   {
     mysql_options(&mysql, FABRIC_OPT_GROUP, opt_fabric_group);
     mysql_options4(&mysql, FABRIC_OPT_GROUP_CREDENTIALS, opt_fabric_user, opt_fabric_password);
-    mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, "rw");
+    mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, opt_fabric_default_mode);
   }
 
 #ifdef _WIN32
@@ -5801,7 +5801,7 @@ static int com_fabric(String *buffer __attribute__((unused)),
   char *new_fabric_opt_mode= my_strdup(PSI_NOT_INSTRUMENTED,
                                         ptr ? ptr + 1 : 0, MYF(MY_WME));
 
-  if (strcmp(new_fabric_opt_mode, "ro") || strcmp(new_fabric_opt_mode, "rw"))
+  if (strcmp(new_fabric_opt_mode, "ro") || strcmp(new_fabric_opt_mode, "rw") || strcmp(new_fabric_opt_mode, "na"))
   {
     mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, new_fabric_opt_mode);
     tee_fprintf(stdout, "Current FABRIC_OPT_DEFAULT_MODE is %s\n", new_fabric_opt_mode);
