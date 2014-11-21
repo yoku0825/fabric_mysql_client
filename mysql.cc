@@ -188,7 +188,7 @@ static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
-static char *opt_fabric_group= 0, *opt_fabric_default_mode= (char *) "na";
+static char *opt_fabric_group= 0, *opt_fabric_default_mode= (char *) "ro";
 static char *opt_fabric_user= 0, *opt_fabric_password= 0;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -5803,14 +5803,17 @@ static int com_fabric(String *buffer __attribute__((unused)),
 {
   char *ptr=strchr(line, ' ');
   char *new_fabric_opt_mode= my_strdup(PSI_NOT_INSTRUMENTED,
-                                        ptr ? ptr + 1 : 0, MYF(MY_WME));
+                                        ptr ? ptr + 1 : "", MYF(MY_WME));
 
-  if (strcmp(new_fabric_opt_mode, "ro") || strcmp(new_fabric_opt_mode, "rw") || strcmp(new_fabric_opt_mode, "na"))
+  if (strlen(new_fabric_opt_mode) == 0)
+    tee_fprintf(stdout, "Current FABRIC_OPT_DEFAULT_MODE is %s\n", opt_fabric_default_mode);
+  else if (strcmp(new_fabric_opt_mode, "ro") == 0 || strcmp(new_fabric_opt_mode, "rw") == 0)
   {
     mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, new_fabric_opt_mode);
-    tee_fprintf(stdout, "Current FABRIC_OPT_DEFAULT_MODE is %s\n", new_fabric_opt_mode);
+    tee_fprintf(stdout, "FABRIC_OPT_DEFAULT_MODE sets %s to %s\n", opt_fabric_default_mode, new_fabric_opt_mode);
+    opt_fabric_default_mode= new_fabric_opt_mode;
   }
   else
-    tee_fprintf(stdout, "Failed to change FABRIC_OPT_DEFAULT_MODE. Only 'ro' and 'rw' are permitted.\n", new_fabric_opt_mode);
+    tee_fprintf(stdout, "Failed to change FABRIC_OPT_DEFAULT_MODE. Only 'ro' and 'rw' are permitted.\n");
   return 0;
 }
