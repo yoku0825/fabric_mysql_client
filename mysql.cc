@@ -5810,7 +5810,7 @@ static int com_fabric(String *buffer __attribute__((unused)),
   else if (strcmp(new_fabric_opt_mode, "ro") == 0 || strcmp(new_fabric_opt_mode, "rw") == 0)
   {
     mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, new_fabric_opt_mode);
-    tee_fprintf(stdout, "FABRIC_OPT_DEFAULT_MODE sets %s to %s\n", opt_fabric_default_mode, new_fabric_opt_mode);
+    tee_fprintf(stdout, "FABRIC_OPT_DEFAULT_MODE sets to %s\n", new_fabric_opt_mode);
     opt_fabric_default_mode= new_fabric_opt_mode;
   }
   else
