@@ -1850,6 +1850,10 @@ static struct my_option my_long_options[] =
    "Real password which is used to connect through MySQL Fabric",
    &opt_fabric_password, &opt_fabric_password, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fabric-default-mode", 0,
+   "OPT_FABRIC_DEFAULT_MODE value",
+   &opt_fabric_default_mode, &opt_fabric_default_mode, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
