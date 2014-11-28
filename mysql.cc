@@ -189,7 +189,7 @@ static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 static char *opt_fabric_group= 0, *opt_fabric_default_mode= (char *) "ro";
-static char *opt_fabric_user= 0, *opt_fabric_password= 0;
+static char *opt_fabric_real_user= 0, *opt_fabric_real_password= 0;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
@@ -1842,13 +1842,13 @@ static struct my_option my_long_options[] =
   {"fabric-group", 0,
    "fabric group", &opt_fabric_group, &opt_fabric_group, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"fabric-user", 0,
+  {"fabric-real-user", 0,
    "Real user name which is used to connect through MySQL Fabric",
-   &opt_fabric_user, &opt_fabric_user, 0,
+   &opt_fabric_real_user, &opt_fabric_real_user, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"fabric-password", 0,
+  {"fabric-real-password", 0,
    "Real password which is used to connect through MySQL Fabric",
-   &opt_fabric_password, &opt_fabric_password, 0,
+   &opt_fabric_real_password, &opt_fabric_real_password, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fabric-default-mode", 0,
    "OPT_FABRIC_DEFAULT_MODE value",
@@ -4906,7 +4906,11 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 
   // Added by yoku0825.
   if (opt_fabric_group)
+  {
     mysql_options(&mysql, MYSQL_OPT_USE_FABRIC, NULL);
+    if (!(host))
+      host= my_strdup(PSI_NOT_INSTRUMENTED, "127.0.0.1", MYF(MY_WME));
+  }
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
@@ -4924,10 +4928,11 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
 
   // Added by yoku0825.
-  if (opt_fabric_group)
+  if (opt_fabric_group && opt_fabric_real_user)
   {
     mysql_options(&mysql, FABRIC_OPT_GROUP, opt_fabric_group);
-    mysql_options4(&mysql, FABRIC_OPT_GROUP_CREDENTIALS, opt_fabric_user, opt_fabric_password);
+    mysql_options4(&mysql, FABRIC_OPT_GROUP_CREDENTIALS,
+                   opt_fabric_real_user, opt_fabric_real_password);
     mysql_options(&mysql, FABRIC_OPT_DEFAULT_MODE, opt_fabric_default_mode);
   }
 
@@ -5236,8 +5241,14 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-      server_version= my_strdup(PSI_NOT_INSTRUMENTED,
-                                mysql_get_server_info(con), MYF(MY_WME));
+    {
+      if (opt_fabric_group && opt_fabric_real_user)
+        server_version= my_strdup(PSI_NOT_INSTRUMENTED,
+                                  "Using MySQL Fabric but can't connect any backends.", MYF(MY_WME));
+      else
+        server_version= my_strdup(PSI_NOT_INSTRUMENTED,
+                                  mysql_get_server_info(con), MYF(MY_WME));
+    }
   }
 
   return server_version ? server_version : "";
