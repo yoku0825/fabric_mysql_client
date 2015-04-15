@@ -31,6 +31,7 @@
  *
  **/
 
+#include <regex>
 #include "client_priv.h"
 #include "my_default.h"
 #include <m_ctype.h>
@@ -5094,6 +5095,9 @@ com_status(String *buffer __attribute__((unused)),
   char buff[40];
   ulonglong id;
   MYSQL_RES *result= NULL;
+
+  if (regex_search(server_version_string, L"Fabric$"))
+    return 0;
 
   if (mysql_real_query_for_lazy(
         C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
